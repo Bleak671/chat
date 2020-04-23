@@ -92,9 +92,7 @@ namespace KSIS_3
                 if (!conn)
                 {
                     Task UdpRec = new Task(UdpReceive);
-                    Task TcpRec = new Task(TcpReceive);
                     UdpRec.Start();
-                    TcpRec.Start();
                 }
                 conn = true;
                 MessageBox.Show("Вы подключились к чату");
@@ -117,14 +115,15 @@ namespace KSIS_3
                     byte[] data = client.Receive(ref iep);
                     Packet msg = new Packet(data);
                     if (String.Compare(iep.Address.ToString(), GetLocalIPAddress()) == 0)
-                        return;
+                       return;
+                    Client cl = new Client(iep, Encoding.Unicode.GetString(msg.data));
                     switch (msg.type)
                     {
                         case 0:
                             bool flag = true;
                             foreach (Client c in clients)
                             { 
-                                if (clients.Contains(c))
+                                if (clients.Contains(cl))
                                 {
                                     flag = false;
                                 }
@@ -136,10 +135,10 @@ namespace KSIS_3
                                 this.Invoke(new MethodInvoker(() =>
                                 {
                                     list.Items.Add(c.name + "(" + c.iep.ToString() + ")");
+                                    Task TcpRec = new Task(() => TcpReceive(c));
+                                    TcpRec.Start(); ;
                                 }));
-                                list.Items.Add(c.name);
                             }
-                            TcpAnswer();
                             break;
                         case 1:
                             foreach (Client c in clients)
@@ -147,7 +146,10 @@ namespace KSIS_3
                                 if (clients.Contains(c))
                                 {
                                     clients.Remove(c);
-                                    listChat.Items.Add(c.name + " покинул чат");
+                                    this.Invoke(new MethodInvoker(() =>
+                                    {
+                                        listChat.Items.Add(c.name + "покинул чат");
+                                    }));
                                 }
                             }
                             break;
@@ -164,10 +166,9 @@ namespace KSIS_3
             }
         }
 
-        private void TcpAnswer()
+        private void TcpAnswer(IPEndPoint iep)
         {
-            IPEndPoint remoteIp = null;
-            TcpClient sender = new TcpClient(remoteIp);
+            TcpClient sender = new TcpClient(iep);
             NetworkStream stream = sender.GetStream();
             Packet msg = new Packet(Encoding.Unicode.GetBytes(textBox2.Text));
             stream.Write(msg.getBytes(), 0, msg.length);
@@ -175,11 +176,11 @@ namespace KSIS_3
             sender.Close();
         }
 
-        private void TcpReceive()
+        private void TcpReceive(Client cl)
         {
-            TcpListener listener = new TcpListener(IPAddress.Parse(GetLocalIPAddress()), 50);
+            TcpListener listener = new TcpListener(cl.iep);
             listener.Start();
-            byte[] data = new byte[65536];
+            byte[] data = new byte[1028];
 
             while (conn)
             {
@@ -187,19 +188,25 @@ namespace KSIS_3
                 NetworkStream stream = client.GetStream();
                 stream.Read(data, 0, data.Length);
                 Packet msg = new Packet(data);
-                IPEndPoint iep = (IPEndPoint)client.Client.RemoteEndPoint;
                 switch (msg.type)
                 {
                     case 0:
-                        Client c = new Client(iep, Encoding.Unicode.GetString(msg.data));
+                        Client c = new Client(cl.iep, Encoding.Unicode.GetString(msg.data));
                         if (!clients.Contains(c))
                         {
                             clients.Add(c);
-                            listChat.Items.Add(GetName(iep, clients) + " присоединился");
+                            this.Invoke(new MethodInvoker(() =>
+                            {
+                                listChat.Items.Add(cl.name + " присоединился");
+                            }));
+                            TcpAnswer(cl.iep);
                         }
                         break;
                     case 1:
-                        listChat.Items.Add(GetName(iep,clients) + ":" + Encoding.Unicode.GetString(msg.data));
+                        this.Invoke(new MethodInvoker(() =>
+                        {
+                            listChat.Items.Add(cl.name + ":" + Encoding.Unicode.GetString(msg.data));
+                        }));
                         break;
                 }
             }
@@ -227,7 +234,15 @@ namespace KSIS_3
 
         private void btnSend_Click(object sender, EventArgs e)
         {
-
+            foreach (Client c in clients)
+            {
+                TcpClient tcpsender = new TcpClient(c.iep);
+                NetworkStream stream = tcpsender.GetStream();
+                Packet msg = new Packet(Encoding.Unicode.GetBytes(textBox2.Text));
+                stream.Write(msg.getBytes(), 0, msg.length);
+                stream.Close();
+                tcpsender.Close();
+            }
         }
 
         private void textBox2_TextChanged(object sender, EventArgs e)
