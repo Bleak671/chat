@@ -53,8 +53,8 @@ namespace KSIS_3
             {
                 type = BitConverter.ToInt32(dat, 0);
                 length = BitConverter.ToInt32(dat, sizeof(int));
-                data = new byte[dat.Length];
-                Buffer.BlockCopy(dat, 0, data, 0, dat.Length);
+                data = new byte[dat.Length - 2 * sizeof(int)];
+                Buffer.BlockCopy(dat, 2 * sizeof(int), data, 0, dat.Length - 2 * sizeof(int));
             }
             public byte[] getBytes()
             {
@@ -116,7 +116,8 @@ namespace KSIS_3
                 {
                     byte[] data = client.Receive(ref iep);
                     Packet msg = new Packet(data);
-                    MessageBox.Show(Encoding.Unicode.GetString(msg.data));
+                    if (String.Compare(iep.Address.ToString(), GetLocalIPAddress()) == 0)
+                        return;
                     switch (msg.type)
                     {
                         case 0:
@@ -132,6 +133,11 @@ namespace KSIS_3
                             {
                                 Client c = new Client(iep, Encoding.Unicode.GetString(msg.data));
                                 clients.Add(c);
+                                this.Invoke(new MethodInvoker(() =>
+                                {
+                                    list.Items.Add(c.name + "(" + c.iep.ToString() + ")");
+                                }));
+                                list.Items.Add(c.name);
                             }
                             TcpAnswer();
                             break;
@@ -201,25 +207,6 @@ namespace KSIS_3
             listener.Stop();
         }
 
-        private void LeaveChat()
-        {
-            conn = false;
-            UdpClient client = new UdpClient();
-            IPEndPoint ep = new IPEndPoint(IPAddress.Parse("230.230.230.230"), 228);
-            try
-            {
-                Packet msg = new Packet(1);
-                client.Send(msg.getBytes(), msg.length, ep);
-                client.Close();
-                MessageBox.Show("Вы отключились");
-            }
-            catch (Exception ex)
-            {
-                client.Close();
-                MessageBox.Show(ex.Message);
-            }
-        }
-
         public static string GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -249,11 +236,6 @@ namespace KSIS_3
             {
                 btnFind.Enabled = true;
             }
-        }
-
-        private void btnLeave_Click(object sender, EventArgs e)
-        {
-
         }
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
