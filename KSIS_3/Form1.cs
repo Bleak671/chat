@@ -93,11 +93,12 @@ namespace KSIS_3
                 {
                     Task UdpRec = new Task(UdpReceive);
                     UdpRec.Start();
-                    Task TcpRec = new Task(() => TcpReceive());
+                    Task TcpRec = new Task(TcpReceive);
                     TcpRec.Start();
                     conn = true;
                 }
                 MessageBox.Show("Вы подключились к чату");
+                btnSend.Enabled = true;
             }
             catch (Exception ex)
             {
