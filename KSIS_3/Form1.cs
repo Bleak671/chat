@@ -45,23 +45,25 @@ namespace KSIS_3
             {
                 type = typ;
                 length = len + 2 * sizeof(int);
-                data = dat;
+                data = new byte[dat.Length];
+                Buffer.BlockCopy(dat,0,data,0,dat.Length);
             }
 
             public Packet(byte[] dat)
             {
                 type = BitConverter.ToInt32(dat, 0);
                 length = BitConverter.ToInt32(dat, sizeof(int));
-                Buffer.BlockCopy(dat, 2 * sizeof(int), data, 0, length - 2 * sizeof(int));
+                data = new byte[dat.Length];
+                Buffer.BlockCopy(dat, 0, data, 0, dat.Length);
             }
             public byte[] getBytes()
             {
-                byte[] data = new byte[length];
-                Buffer.BlockCopy(BitConverter.GetBytes(type), 0, data, 0, sizeof(int));
-                Buffer.BlockCopy(BitConverter.GetBytes(length), 0, data, sizeof(int), sizeof(int));
+                byte[] dat = new byte[length];
+                Buffer.BlockCopy(BitConverter.GetBytes(type), 0, dat, 0, sizeof(int));
+                Buffer.BlockCopy(BitConverter.GetBytes(length), 0, dat, sizeof(int), sizeof(int));
                 if (data != null)
-                    Buffer.BlockCopy(data, 0, data, 2 * sizeof(int), length - 2 * sizeof(int));
-                return data;
+                    Buffer.BlockCopy(data, 0, dat, 2 * sizeof(int), length - 2 * sizeof(int));
+                return dat;
             }
         }
 
