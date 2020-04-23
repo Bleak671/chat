@@ -93,8 +93,10 @@ namespace KSIS_3
                 {
                     Task UdpRec = new Task(UdpReceive);
                     UdpRec.Start();
+                    Task TcpRec = new Task(() => TcpReceive());
+                    TcpRec.Start();
+                    conn = true;
                 }
-                conn = true;
                 MessageBox.Show("Вы подключились к чату");
             }
             catch (Exception ex)
@@ -135,9 +137,8 @@ namespace KSIS_3
                                 this.Invoke(new MethodInvoker(() =>
                                 {
                                     list.Items.Add(c.name + "(" + c.iep.ToString() + ")");
-                                    Task TcpRec = new Task(() => TcpReceive(c));
-                                    TcpRec.Start(); ;
                                 }));
+                                TcpAnswer(iep);
                             }
                             break;
                         case 1:
@@ -176,9 +177,9 @@ namespace KSIS_3
             sender.Close();
         }
 
-        private void TcpReceive(Client cl)
+        private void TcpReceive()
         {
-            TcpListener listener = new TcpListener(cl.iep);
+            TcpListener listener = new TcpListener(IPAddress.Parse(GetLocalIPAddress()), 8888);
             listener.Start();
             byte[] data = new byte[1028];
 
@@ -188,24 +189,25 @@ namespace KSIS_3
                 NetworkStream stream = client.GetStream();
                 stream.Read(data, 0, data.Length);
                 Packet msg = new Packet(data);
+                IPEndPoint iep = (IPEndPoint)client.Client.RemoteEndPoint;
+                Client c = new Client(iep, Encoding.Unicode.GetString(msg.data));
                 switch (msg.type)
                 {
                     case 0:
-                        Client c = new Client(cl.iep, Encoding.Unicode.GetString(msg.data));
                         if (!clients.Contains(c))
                         {
                             clients.Add(c);
                             this.Invoke(new MethodInvoker(() =>
                             {
-                                listChat.Items.Add(cl.name + " присоединился");
+                                listChat.Items.Add(c.name + " присоединился");
                             }));
-                            TcpAnswer(cl.iep);
+                            TcpAnswer(c.iep);
                         }
                         break;
                     case 1:
                         this.Invoke(new MethodInvoker(() =>
                         {
-                            listChat.Items.Add(cl.name + ":" + Encoding.Unicode.GetString(msg.data));
+                            listChat.Items.Add(c.name + ":" + Encoding.Unicode.GetString(msg.data));
                         }));
                         break;
                 }
