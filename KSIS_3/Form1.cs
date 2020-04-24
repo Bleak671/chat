@@ -170,7 +170,8 @@ namespace KSIS_3
 
         private void TcpAnswer(IPEndPoint iep)
         {
-            TcpClient sender = new TcpClient(iep);
+            TcpClient sender = new TcpClient();
+            sender.Connect(iep.Address, 1337);
             NetworkStream stream = sender.GetStream();
             Packet msg = new Packet(Encoding.Unicode.GetBytes(textBox2.Text));
             stream.Write(msg.getBytes(), 0, msg.length);
@@ -180,7 +181,7 @@ namespace KSIS_3
 
         private void TcpReceive()
         {
-            TcpListener listener = new TcpListener(IPAddress.Parse(GetLocalIPAddress()), 8888);
+            TcpListener listener = new TcpListener(IPAddress.Parse(GetLocalIPAddress()), 1337);
             listener.Start();
             byte[] data = new byte[1028];
 
@@ -206,10 +207,13 @@ namespace KSIS_3
                         }
                         break;
                     case 1:
-                        this.Invoke(new MethodInvoker(() =>
+                        if (clients.Contains(c))
                         {
-                            listChat.Items.Add(c.name + ":" + Encoding.Unicode.GetString(msg.data));
-                        }));
+                            this.Invoke(new MethodInvoker(() =>
+                            {
+                                listChat.Items.Add(c.name + ":" + Encoding.Unicode.GetString(msg.data));
+                            }));
+                        }
                         break;
                 }
             }
